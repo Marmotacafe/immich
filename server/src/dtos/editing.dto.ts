@@ -5,6 +5,7 @@ export enum AssetEditAction {
   Crop = 'crop',
   Rotate = 'rotate',
   Mirror = 'mirror',
+  Adjust = 'adjust',
 }
 
 export const AssetEditActionSchema = z
@@ -45,23 +46,33 @@ const MirrorParametersSchema = z
   })
   .meta({ id: 'MirrorParameters' });
 
+const AdjustParametersSchema = z
+  .object({
+    brightness: z.number().min(0).max(2).describe('Brightness multiplier (1 = unchanged)'),
+    contrast: z.number().min(0).max(2).describe('Contrast multiplier (1 = unchanged)'),
+    saturation: z.number().min(0).max(2).describe('Saturation multiplier (1 = unchanged, 0 = grayscale)'),
+  })
+  .meta({ id: 'AdjustParameters' });
+
 // TODO: ideally we would use the discriminated union directly in the future not only for type support but also for validation and openapi generation
 const __AssetEditActionItemSchema = z.discriminatedUnion('action', [
   z.object({ action: AssetEditActionSchema.extract(['Crop']), parameters: CropParametersSchema }),
   z.object({ action: AssetEditActionSchema.extract(['Rotate']), parameters: RotateParametersSchema }),
   z.object({ action: AssetEditActionSchema.extract(['Mirror']), parameters: MirrorParametersSchema }),
+  z.object({ action: AssetEditActionSchema.extract(['Adjust']), parameters: AdjustParametersSchema }),
 ]);
 
 const AssetEditParametersSchema = z
-  .union([CropParametersSchema, RotateParametersSchema, MirrorParametersSchema], {
+  .union([CropParametersSchema, RotateParametersSchema, MirrorParametersSchema, AdjustParametersSchema], {
     error: getExpectedKeysByActionMessage,
   })
-  .describe('List of edit actions to apply (crop, rotate, or mirror)');
+  .describe('List of edit actions to apply (crop, rotate, mirror, or adjust)');
 
 const actionParameterMap = {
   [AssetEditAction.Crop]: CropParametersSchema,
   [AssetEditAction.Rotate]: RotateParametersSchema,
   [AssetEditAction.Mirror]: MirrorParametersSchema,
+  [AssetEditAction.Adjust]: AdjustParametersSchema,
 } as const;
 
 function getExpectedKeysByActionMessage(): string {
@@ -112,7 +123,7 @@ const AssetEditsCreateSchema = z
     edits: z
       .array(AssetEditActionItemSchema)
       .min(1)
-      .describe('List of edit actions to apply (crop, rotate, or mirror)')
+      .describe('List of edit actions to apply (crop, rotate, mirror, or adjust)')
       .refine(uniqueEditActions, { error: 'Duplicate edit actions are not allowed' }),
   })
   .meta({ id: 'AssetEditsCreateDto' });
@@ -132,3 +143,4 @@ export class AssetEditActionItemResponseDto extends createZodDto(AssetEditAction
 export class AssetEditsCreateDto extends createZodDto(AssetEditsCreateSchema) {}
 export class AssetEditsResponseDto extends createZodDto(AssetEditsResponseSchema) {}
 export type CropParameters = z.infer<typeof CropParametersSchema>;
+export type AdjustParameters = z.infer<typeof AdjustParametersSchema>;

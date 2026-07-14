@@ -16514,6 +16514,34 @@
         ],
         "type": "object"
       },
+      "AdjustParameters": {
+        "properties": {
+          "brightness": {
+            "description": "Brightness multiplier (1 = unchanged)",
+            "maximum": 2,
+            "minimum": 0,
+            "type": "number"
+          },
+          "contrast": {
+            "description": "Contrast multiplier (1 = unchanged)",
+            "maximum": 2,
+            "minimum": 0,
+            "type": "number"
+          },
+          "saturation": {
+            "description": "Saturation multiplier (1 = unchanged, 0 = grayscale)",
+            "maximum": 2,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "brightness",
+          "contrast",
+          "saturation"
+        ],
+        "type": "object"
+      },
       "AdminOnboardingUpdateDto": {
         "properties": {
           "isOnboarded": {
@@ -17102,7 +17130,8 @@
         "enum": [
           "crop",
           "rotate",
-          "mirror"
+          "mirror",
+          "adjust"
         ],
         "type": "string"
       },
@@ -17121,9 +17150,12 @@
               },
               {
                 "$ref": "#/components/schemas/MirrorParameters"
+              },
+              {
+                "$ref": "#/components/schemas/AdjustParameters"
               }
             ],
-            "description": "List of edit actions to apply (crop, rotate, or mirror)"
+            "description": "List of edit actions to apply (crop, rotate, mirror, or adjust)"
           }
         },
         "required": [
@@ -17153,9 +17185,12 @@
               },
               {
                 "$ref": "#/components/schemas/MirrorParameters"
+              },
+              {
+                "$ref": "#/components/schemas/AdjustParameters"
               }
             ],
-            "description": "List of edit actions to apply (crop, rotate, or mirror)"
+            "description": "List of edit actions to apply (crop, rotate, mirror, or adjust)"
           }
         },
         "required": [
@@ -17168,7 +17203,7 @@
       "AssetEditsCreateDto": {
         "properties": {
           "edits": {
-            "description": "List of edit actions to apply (crop, rotate, or mirror)",
+            "description": "List of edit actions to apply (crop, rotate, mirror, or adjust)",
             "items": {
               "$ref": "#/components/schemas/AssetEditActionItemDto"
             },

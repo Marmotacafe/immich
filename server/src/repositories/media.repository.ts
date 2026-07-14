@@ -149,7 +149,11 @@ export class MediaRepository {
     return this.getImageDecodingPipeline(input, options).raw().toBuffer({ resolveWithObject: true });
   }
 
-  private applyEdits(pipeline: sharp.Sharp, edits: AssetEditActionItem[]): sharp.Sharp {
+  private applyEdits(
+    pipeline: sharp.Sharp,
+    edits: AssetEditActionItem[],
+    colorspace: string = Colorspace.Srgb,
+  ): sharp.Sharp {
     const crop = edits.find((edit) => edit.action === 'crop');
     if (crop) {
       pipeline = pipeline.extract({
@@ -160,13 +164,28 @@ export class MediaRepository {
       });
     }
 
-    const affineEditOperations = edits.filter((edit) => edit.action !== 'crop');
+    const affineEditOperations = edits.filter((edit) => edit.action === 'rotate' || edit.action === 'mirror');
     if (affineEditOperations.length > 0) {
       const { a, b, c, d } = createAffineMatrix(affineEditOperations);
       pipeline = pipeline.affine([
         [a, b],
         [c, d],
       ]);
+    }
+
+    const adjust = edits.find((edit) => edit.action === 'adjust');
+    if (adjust) {
+      const { brightness, contrast, saturation } = adjust.parameters;
+      if (brightness !== 1 || saturation !== 1) {
+        pipeline = pipeline.modulate({ brightness, saturation });
+      }
+
+      if (contrast !== 1) {
+        // linear() operates on raw channel values, so the contrast curve must pivot around
+        // mid-grey of the working bit depth (srgb pipeline is 8-bit, everything else is rgb16)
+        const midGrey = colorspace === Colorspace.Srgb ? 128 : 32_768;
+        pipeline = pipeline.linear(contrast, (1 - contrast) * midGrey);
+      }
     }
 
     return pipeline;
@@ -207,7 +226,7 @@ export class MediaRepository {
     }
 
     if (options.edits && options.edits.length > 0) {
-      pipeline = this.applyEdits(pipeline, options.edits);
+      pipeline = this.applyEdits(pipeline, options.edits, options.colorspace);
     }
 
     if (options.size !== undefined) {
