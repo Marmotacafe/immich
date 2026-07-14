@@ -1,8 +1,11 @@
 import { editAsset, removeAssetEdits, type AssetEditsCreateDto, type AssetResponseDto } from '@immich/sdk';
 import { ConfirmModal, modalManager, toastManager } from '@immich/ui';
-import { mdiCropRotate } from '@mdi/js';
+import { mdiCropRotate, mdiTuneVariant } from '@mdi/js';
 import type { Component } from 'svelte';
+import { SvelteSet } from 'svelte/reactivity';
+import AdjustTool from '$lib/components/asset-viewer/editor/adjust-tool/AdjustTool.svelte';
 import TransformTool from '$lib/components/asset-viewer/editor/transform-tool/TransformTool.svelte';
+import { adjustManager } from '$lib/managers/edit/adjust-manager.svelte';
 import { transformManager } from '$lib/managers/edit/transform-manager.svelte';
 import { eventManager } from '$lib/managers/event-manager.svelte';
 import { waitForWebsocketEvent } from '$lib/stores/websocket';
@@ -22,6 +25,7 @@ export interface EditToolManager {
 
 export enum EditToolType {
   Transform = 'transform',
+  Adjust = 'adjust',
 }
 
 export interface EditTool {
@@ -38,6 +42,12 @@ export class EditManager {
       icon: mdiCropRotate,
       component: TransformTool,
       manager: transformManager,
+    },
+    {
+      type: EditToolType.Adjust,
+      icon: mdiTuneVariant,
+      component: AdjustTool,
+      manager: adjustManager,
     },
   ];
 
@@ -81,8 +91,11 @@ export class EditManager {
     for (const tool of this.tools) {
       tool.manager.onDeactivate?.();
     }
+    this.activatedTools.clear();
     this.selectedTool = this.tools[0];
   }
+
+  private activatedTools = new SvelteSet<EditToolType>();
 
   async activateTool(toolType: EditToolType, asset: AssetResponseDto, edits: AssetEditsCreateDto) {
     this.hasAppliedEdits = false;
@@ -92,10 +105,17 @@ export class EditManager {
 
     this.currentAsset = asset;
 
-    this.selectedTool?.manager.onDeactivate?.();
     const newTool = this.tools.find((t) => t.type === toolType);
-    if (newTool) {
-      this.selectedTool = newTool;
+    if (!newTool) {
+      return;
+    }
+
+    this.selectedTool = newTool;
+
+    // Tools keep their state while another tool is selected so that switching does not
+    // discard unsaved edits; each tool initializes once and is torn down in cleanup()
+    if (!this.activatedTools.has(toolType)) {
+      this.activatedTools.add(toolType);
       await newTool.manager.onActivate?.(asset, edits.edits);
     }
   }
@@ -104,6 +124,7 @@ export class EditManager {
     for (const tool of this.tools) {
       tool.manager.onDeactivate?.();
     }
+    this.activatedTools.clear();
     this.currentAsset = null;
     this.selectedTool = null;
   }
