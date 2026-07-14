@@ -124,7 +124,7 @@ const updatedConfig = Object.freeze<SystemConfig>({
     },
     facialRecognition: {
       enabled: true,
-      modelName: 'buffalo_l',
+      modelName: 'antelopev2',
       minScore: 0.7,
       maxDistance: 0.5,
       minFaces: 3,
