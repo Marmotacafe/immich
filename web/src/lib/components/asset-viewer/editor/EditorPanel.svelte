@@ -2,7 +2,7 @@
   import { shortcuts } from '$lib/actions/shortcut';
   import { editManager, EditToolType } from '$lib/managers/edit/edit-manager.svelte';
   import { websocketEvents } from '$lib/stores/websocket';
-  import { getAssetEdits, type AssetResponseDto } from '@immich/sdk';
+  import { getAssetEdits, type AssetEditsResponseDto, type AssetResponseDto } from '@immich/sdk';
   import { Button, HStack, IconButton } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
   import { onDestroy, onMount } from 'svelte';
@@ -21,10 +21,25 @@
     onClose: () => void;
   }
 
-  onMount(async () => {
-    const edits = await getAssetEdits({ id: asset.id });
-    await editManager.activateTool(EditToolType.Transform, asset, edits);
+  let assetEdits = $state<AssetEditsResponseDto | null>(null);
+
+  const toolLabels = $derived<Record<EditToolType, string>>({
+    [EditToolType.Transform]: $t('editor_tool_transform'),
+    [EditToolType.Adjust]: $t('editor_tool_adjust'),
   });
+
+  onMount(async () => {
+    assetEdits = await getAssetEdits({ id: asset.id });
+    await editManager.activateTool(EditToolType.Transform, asset, assetEdits);
+  });
+
+  async function selectTool(toolType: EditToolType) {
+    if (!assetEdits) {
+      return;
+    }
+
+    await editManager.activateTool(toolType, asset, assetEdits);
+  }
 
   onDestroy(() => {
     editManager.cleanup();
@@ -68,6 +83,19 @@
       <p class="text-lg text-immich-fg capitalize dark:text-immich-dark-fg">{$t('editor')}</p>
     </HStack>
     <Button shape="round" size="small" onclick={applyEdits} loading={editManager.isApplyingEdits}>{$t('save')}</Button>
+  </HStack>
+
+  <HStack class="mt-3 justify-center">
+    {#each editManager.tools as tool (tool.type)}
+      <IconButton
+        shape="round"
+        variant={editManager.selectedTool?.type === tool.type ? 'filled' : 'ghost'}
+        color={editManager.selectedTool?.type === tool.type ? 'primary' : 'secondary'}
+        icon={tool.icon}
+        aria-label={toolLabels[tool.type]}
+        onclick={() => selectTool(tool.type)}
+      />
+    {/each}
   </HStack>
 
   <section>
