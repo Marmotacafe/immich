@@ -15,7 +15,7 @@ import 'package:immich_mobile/theme/theme_data.dart';
 import 'package:immich_mobile/utils/editor.utils.dart';
 import 'package:immich_mobile/widgets/common/immich_toast.dart';
 import 'package:immich_ui/immich_ui.dart';
-import 'package:openapi/api.dart' show RotateParameters, MirrorParameters, MirrorAxis;
+import 'package:openapi/api.dart' show AdjustParameters, RotateParameters, MirrorParameters, MirrorAxis;
 
 @RoutePage()
 class DriftEditImagePage extends ConsumerStatefulWidget {
@@ -29,6 +29,8 @@ class DriftEditImagePage extends ConsumerStatefulWidget {
 }
 
 class _DriftEditImagePageState extends ConsumerState<DriftEditImagePage> with TickerProviderStateMixin {
+  bool _showAdjustments = false;
+
   Future<void> _saveEditedImage() async {
     ref.read(editorStateProvider.notifier).setIsEditing(true);
 
@@ -55,6 +57,18 @@ class _DriftEditImagePageState extends ConsumerState<DriftEditImagePage> with Ti
     final normalizedRotation = (editorState.rotationAngle % 360 + 360) % 360;
     if (normalizedRotation != 0) {
       edits.add(RotateEdit(RotateParameters(angle: normalizedRotation)));
+    }
+
+    if (editorState.hasAdjustments) {
+      edits.add(
+        AdjustEdit(
+          AdjustParameters(
+            brightness: editorState.brightness,
+            contrast: editorState.contrast,
+            saturation: editorState.saturation,
+          ),
+        ),
+      );
     }
 
     try {
@@ -132,11 +146,15 @@ class _DriftEditImagePageState extends ConsumerState<DriftEditImagePage> with Ti
                         topRight: Radius.circular(20),
                       ),
                     ),
-                    child: const Column(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _TransformControls(),
-                        Padding(
+                        _EditorSectionToggle(
+                          showAdjustments: _showAdjustments,
+                          onChanged: (showAdjustments) => setState(() => _showAdjustments = showAdjustments),
+                        ),
+                        if (_showAdjustments) const _AdjustControls() else const _TransformControls(),
+                        const Padding(
                           padding: EdgeInsets.only(bottom: 36, left: 24, right: 24),
                           child: Row(children: [Spacer(), _ResetEditsButton()]),
                         ),
@@ -228,6 +246,104 @@ class _AspectRatioSelector extends ConsumerWidget {
           );
         }).toList(),
       ),
+    );
+  }
+}
+
+class _EditorSectionToggle extends StatelessWidget {
+  final bool showAdjustments;
+  final ValueChanged<bool> onChanged;
+
+  const _EditorSectionToggle({required this.showAdjustments, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ImmichIconButton(
+            icon: Icons.crop_rotate,
+            variant: showAdjustments ? ImmichVariant.ghost : ImmichVariant.filled,
+            color: showAdjustments ? ImmichColor.secondary : ImmichColor.primary,
+            onPressed: () => onChanged(false),
+          ),
+          const SizedBox(width: 16),
+          ImmichIconButton(
+            icon: Icons.tune,
+            variant: showAdjustments ? ImmichVariant.filled : ImmichVariant.ghost,
+            color: showAdjustments ? ImmichColor.primary : ImmichColor.secondary,
+            onPressed: () => onChanged(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdjustmentSlider extends StatelessWidget {
+  final String label;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  const _AdjustmentSlider({required this.label, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = ((value - 1) * 100).round();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          SizedBox(width: 88, child: Text(label, style: context.textTheme.labelLarge)),
+          Expanded(
+            child: Slider(value: value, min: 0, max: 2, onChanged: onChanged),
+          ),
+          SizedBox(
+            width: 40,
+            child: Text(
+              percent > 0 ? '+$percent' : '$percent',
+              textAlign: TextAlign.end,
+              style: context.textTheme.labelLarge,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdjustControls extends ConsumerWidget {
+  const _AdjustControls();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final editorState = ref.watch(editorStateProvider);
+    final editorNotifier = ref.read(editorStateProvider.notifier);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 8),
+        _AdjustmentSlider(
+          label: 'editor_brightness'.tr(),
+          value: editorState.brightness,
+          onChanged: editorNotifier.setBrightness,
+        ),
+        _AdjustmentSlider(
+          label: 'editor_contrast'.tr(),
+          value: editorState.contrast,
+          onChanged: editorNotifier.setContrast,
+        ),
+        _AdjustmentSlider(
+          label: 'editor_saturation'.tr(),
+          value: editorState.saturation,
+          onChanged: editorNotifier.setSaturation,
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }
@@ -427,7 +543,16 @@ class _EditorPreviewState extends ConsumerState<_EditorPreview> with TickerProvi
                 padding: const EdgeInsets.all(10),
                 width: (editorState.rotationAngle % 180 == 0) ? baseWidth : baseHeight,
                 height: (editorState.rotationAngle % 180 == 0) ? baseHeight : baseWidth,
-                child: CropImage(controller: cropController, image: widget.image, gridColor: Colors.white),
+                child: ColorFiltered(
+                  colorFilter: ColorFilter.matrix(
+                    buildAdjustColorMatrix(
+                      brightness: editorState.brightness,
+                      contrast: editorState.contrast,
+                      saturation: editorState.saturation,
+                    ),
+                  ),
+                  child: CropImage(controller: cropController, image: widget.image, gridColor: Colors.white),
+                ),
               ),
             ),
           ),

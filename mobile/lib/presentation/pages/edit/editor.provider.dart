@@ -21,6 +21,7 @@ class EditorProvider extends Notifier<EditorState> {
     clear();
 
     final existingCrop = edits.whereType<CropEdit>().firstOrNull;
+    final existingAdjust = edits.whereType<AdjustEdit>().firstOrNull;
 
     final originalWidth = exifInfo.isFlipped ? exifInfo.height : exifInfo.width;
     final originalHeight = exifInfo.isFlipped ? exifInfo.width : exifInfo.height;
@@ -37,6 +38,9 @@ class EditorProvider extends Notifier<EditorState> {
       crop: crop,
       flipHorizontal: transform.mirrorHorizontal,
       flipVertical: transform.mirrorVertical,
+      brightness: existingAdjust?.parameters.brightness.toDouble(),
+      contrast: existingAdjust?.parameters.contrast.toDouble(),
+      saturation: existingAdjust?.parameters.saturation.toDouble(),
     );
 
     _animateRotation(transform.rotation.toInt(), duration: Duration.zero);
@@ -73,8 +77,23 @@ class EditorProvider extends Notifier<EditorState> {
       flipVertical: false,
       crop: const Rect.fromLTRB(0, 0, 1, 1),
       aspectRatio: CropAspectRatio.free,
+      brightness: 1,
+      contrast: 1,
+      saturation: 1,
       hasUnsavedEdits: true,
     );
+  }
+
+  void setBrightness(double value) {
+    state = state.copyWith(brightness: value, hasUnsavedEdits: true);
+  }
+
+  void setContrast(double value) {
+    state = state.copyWith(contrast: value, hasUnsavedEdits: true);
+  }
+
+  void setSaturation(double value) {
+    state = state.copyWith(saturation: value, hasUnsavedEdits: true);
   }
 
   void rotateCCW() {
@@ -115,6 +134,10 @@ class EditorState {
   final Rect crop;
   final CropAspectRatio aspectRatio;
 
+  final double brightness;
+  final double contrast;
+  final double saturation;
+
   final int originalWidth;
   final int originalHeight;
 
@@ -129,6 +152,9 @@ class EditorState {
     bool? flipVertical,
     Rect? crop,
     CropAspectRatio? aspectRatio,
+    double? brightness,
+    double? contrast,
+    double? saturation,
     int? originalWidth,
     int? originalHeight,
     Duration? animationDuration,
@@ -142,6 +168,9 @@ class EditorState {
        originalHeight = originalHeight ?? 0,
        crop = crop ?? const Rect.fromLTRB(0, 0, 1, 1),
        aspectRatio = aspectRatio ?? CropAspectRatio.free,
+       brightness = brightness ?? 1,
+       contrast = contrast ?? 1,
+       saturation = saturation ?? 1,
        hasUnsavedEdits = hasUnsavedEdits ?? false;
 
   EditorState copyWith({
@@ -150,6 +179,9 @@ class EditorState {
     bool? flipHorizontal,
     bool? flipVertical,
     CropAspectRatio? aspectRatio,
+    double? brightness,
+    double? contrast,
+    double? saturation,
     int? originalWidth,
     int? originalHeight,
     Duration? animationDuration,
@@ -162,6 +194,9 @@ class EditorState {
       flipHorizontal: flipHorizontal ?? this.flipHorizontal,
       flipVertical: flipVertical ?? this.flipVertical,
       aspectRatio: aspectRatio ?? this.aspectRatio,
+      brightness: brightness ?? this.brightness,
+      contrast: contrast ?? this.contrast,
+      saturation: saturation ?? this.saturation,
       animationDuration: animationDuration ?? this.animationDuration,
       originalWidth: originalWidth ?? this.originalWidth,
       originalHeight: originalHeight ?? this.originalHeight,
@@ -170,8 +205,16 @@ class EditorState {
     );
   }
 
+  bool get hasAdjustments {
+    return brightness != 1 || contrast != 1 || saturation != 1;
+  }
+
   bool get hasEdits {
-    return rotationAngle != 0 || flipHorizontal || flipVertical || crop != const Rect.fromLTRB(0, 0, 1, 1);
+    return rotationAngle != 0 ||
+        flipHorizontal ||
+        flipVertical ||
+        crop != const Rect.fromLTRB(0, 0, 1, 1) ||
+        hasAdjustments;
   }
 
   @override
@@ -187,6 +230,9 @@ class EditorState {
         other.flipVertical == flipVertical &&
         other.crop == crop &&
         other.aspectRatio == aspectRatio &&
+        other.brightness == brightness &&
+        other.contrast == contrast &&
+        other.saturation == saturation &&
         other.originalWidth == originalWidth &&
         other.originalHeight == originalHeight &&
         other.animationDuration == animationDuration &&
@@ -201,6 +247,9 @@ class EditorState {
         flipVertical.hashCode ^
         crop.hashCode ^
         aspectRatio.hashCode ^
+        brightness.hashCode ^
+        contrast.hashCode ^
+        saturation.hashCode ^
         originalWidth.hashCode ^
         originalHeight.hashCode ^
         animationDuration.hashCode ^

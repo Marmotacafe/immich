@@ -352,6 +352,7 @@ Class | Method | HTTP request | Description
  - [ActivityResponseDto](doc//ActivityResponseDto.md)
  - [ActivityStatisticsResponseDto](doc//ActivityStatisticsResponseDto.md)
  - [AddUsersDto](doc//AddUsersDto.md)
+ - [AdjustParameters](doc//AdjustParameters.md)
  - [AdminOnboardingUpdateDto](doc//AdminOnboardingUpdateDto.md)
  - [AlbumResponseDto](doc//AlbumResponseDto.md)
  - [AlbumStatisticsResponseDto](doc//AlbumStatisticsResponseDto.md)

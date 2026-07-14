@@ -36,9 +36,55 @@ AffineMatrix buildAffineFromEdits(List<AssetEdit> edits) {
         MirrorEdit(:final parameters) =>
           parameters.axis == MirrorAxis.horizontal ? AffineMatrix.flipY() : AffineMatrix.flipX(),
         CropEdit() => AffineMatrix.identity(),
+        AdjustEdit() => AffineMatrix.identity(),
       };
     }).toList(),
   );
+}
+
+/// Builds a 4x5 color matrix for [ColorFilter.matrix] applying brightness,
+/// contrast, and saturation multipliers (1 = neutral), approximating the
+/// server-side rendering: brightness/saturation like sharp's modulate and
+/// contrast as a linear curve pivoted around mid-grey.
+List<double> buildAdjustColorMatrix({
+  required double brightness,
+  required double contrast,
+  required double saturation,
+}) {
+  // Rec. 709 luminance weights, matching the css saturate() filter used by the web editor
+  const lumR = 0.2126;
+  const lumG = 0.7152;
+  const lumB = 0.0722;
+
+  final sr = (1 - saturation) * lumR;
+  final sg = (1 - saturation) * lumG;
+  final sb = (1 - saturation) * lumB;
+
+  final scale = brightness * contrast;
+  final offset = 255 * (1 - contrast) / 2;
+
+  return [
+    (sr + saturation) * scale,
+    sg * scale,
+    sb * scale,
+    0,
+    offset,
+    sr * scale,
+    (sg + saturation) * scale,
+    sb * scale,
+    0,
+    offset,
+    sr * scale,
+    sg * scale,
+    (sb + saturation) * scale,
+    0,
+    offset,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ];
 }
 
 bool isCloseToZero(double value, [double epsilon = 1e-15]) {
