@@ -860,7 +860,7 @@ describe(PersonService.name, () => {
       await sut.handleDetectFaces({ id: asset.id });
       expect(mocks.machineLearning.detectFaces).toHaveBeenCalledWith(
         asset.files[0].path,
-        expect.objectContaining({ minScore: 0.7, modelName: 'buffalo_l' }),
+        expect.objectContaining({ minScore: 0.7, modelName: 'antelopev2' }),
       );
       expect(mocks.job.queue).not.toHaveBeenCalled();
       expect(mocks.job.queueAll).not.toHaveBeenCalled();

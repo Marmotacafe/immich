@@ -137,7 +137,7 @@ The default configuration looks like this:
       "maxDistance": 0.5,
       "minFaces": 3,
       "minScore": 0.7,
-      "modelName": "buffalo_l"
+      "modelName": "antelopev2"
     },
     "ocr": {
       "enabled": true,
