@@ -165,6 +165,98 @@ describe(MediaRepository.name, () => {
       // bottom-right should now be top-right (blue)
       expect(await getPixelColor(bufferVertical, 990, 990)).toEqual({ r: 0, g: 255, b: 0 });
     });
+
+    it('should apply contrast adjustment pivoted around mid-grey', async () => {
+      const buildGreyImage = (value: number) =>
+        sharp({
+          create: { width: 10, height: 10, channels: 3, background: { r: value, g: value, b: value } },
+        }).png();
+
+      const adjustContrast = (value: number) =>
+        sut['applyEdits'](buildGreyImage(value), [
+          {
+            action: AssetEditAction.Adjust,
+            parameters: { brightness: 1, contrast: 1.5, saturation: 1 },
+          },
+        ]).toBuffer();
+
+      // out = 1.5 * in - 0.5 * 128: light grey moves up, dark grey moves down, mid-grey stays
+      const light = await getPixelColor(await adjustContrast(200), 5, 5);
+      expect(light.r).toBeGreaterThan(230);
+      expect(light.r).toBeLessThan(241);
+
+      const dark = await getPixelColor(await adjustContrast(50), 5, 5);
+      expect(dark.r).toBeGreaterThan(6);
+      expect(dark.r).toBeLessThan(16);
+
+      const mid = await getPixelColor(await adjustContrast(128), 5, 5);
+      expect(mid.r).toBeGreaterThan(123);
+      expect(mid.r).toBeLessThan(133);
+    });
+
+    it('should apply brightness adjustment', async () => {
+      const image = sharp({
+        create: { width: 10, height: 10, channels: 3, background: { r: 100, g: 100, b: 100 } },
+      }).png();
+
+      const result = await sut['applyEdits'](image, [
+        {
+          action: AssetEditAction.Adjust,
+          parameters: { brightness: 1.5, contrast: 1, saturation: 1 },
+        },
+      ]).toBuffer();
+
+      const pixel = await getPixelColor(result, 5, 5);
+      expect(pixel.r).toBeGreaterThan(120);
+      expect(pixel.r).toBe(pixel.g);
+      expect(pixel.g).toBe(pixel.b);
+    });
+
+    it('should apply saturation adjustment', async () => {
+      const image = sharp({
+        create: { width: 10, height: 10, channels: 3, background: { r: 200, g: 50, b: 50 } },
+      }).png();
+
+      const result = await sut['applyEdits'](image, [
+        {
+          action: AssetEditAction.Adjust,
+          parameters: { brightness: 1, contrast: 1, saturation: 0 },
+        },
+      ]).toBuffer();
+
+      // fully desaturated: all channels converge to grey
+      const pixel = await getPixelColor(result, 5, 5);
+      expect(Math.abs(pixel.r - pixel.g)).toBeLessThan(3);
+      expect(Math.abs(pixel.g - pixel.b)).toBeLessThan(3);
+    });
+
+    it('should leave pixels unchanged for a neutral adjustment', async () => {
+      const image = sharp({
+        create: { width: 10, height: 10, channels: 4, background: { r: 120, g: 80, b: 40, alpha: 1 } },
+      }).png();
+
+      const result = await sut['applyEdits'](image, [
+        {
+          action: AssetEditAction.Adjust,
+          parameters: { brightness: 1, contrast: 1, saturation: 1 },
+        },
+      ]).toBuffer();
+
+      expect(await getPixelColor(result, 5, 5)).toEqual({ r: 120, g: 80, b: 40 });
+    });
+
+    it('should preserve dimensions when adjusting', async () => {
+      const result = sut['applyEdits'](sharp(await buildTestQuadImage()), [
+        {
+          action: AssetEditAction.Adjust,
+          parameters: { brightness: 1.2, contrast: 1.2, saturation: 1.2 },
+        },
+      ]);
+
+      const metadata = await result.toBuffer().then((buf) => sharp(buf).metadata());
+      expect(metadata.width).toBe(1000);
+      expect(metadata.height).toBe(1000);
+    });
   });
 
   describe('applyEdits (multiple sequential edits)', () => {
