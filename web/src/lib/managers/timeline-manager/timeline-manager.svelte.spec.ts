@@ -808,4 +808,64 @@ describe('TimelineManager', () => {
       expect(b.showAssetOwners).toBe(true);
     });
   });
+
+  describe('updateAssetBoundaries', () => {
+    let timelineManager: TimelineManager;
+
+    const bucketAssets: Record<string, TimelineAsset[]> = {
+      '2024-02-01T00:00:00.000Z': timelineAssetFactory.buildList(100).map((asset) =>
+        deriveLocalDateTimeFromFileCreatedAt({
+          ...asset,
+          fileCreatedAt: fromISODateTimeUTCToObject('2024-02-01T00:00:00.000Z'),
+        }),
+      ),
+    };
+
+    const bucketAssetsResponse: Record<string, TimeBucketAssetResponseDto> = Object.fromEntries(
+      Object.entries(bucketAssets).map(([key, assets]) => [key, toResponseDto(...assets)]),
+    );
+
+    beforeEach(async () => {
+      timelineManager = new TimelineManager();
+      sdkMock.getTimeBuckets.mockResolvedValue([{ count: 100, timeBucket: '2024-02-01' }]);
+      sdkMock.getTimeBucket.mockImplementation(({ timeBucket }) => Promise.resolve(bucketAssetsResponse[timeBucket]));
+
+      await timelineManager.updateViewport({ width: 1588, height: 1000 });
+      await timelineManager.loadTimelineMonth({ year: 2024, month: 2 });
+      await tick();
+    });
+
+    it('keeps the same activeViewerAssets reference while the visible range is unchanged', () => {
+      const day = timelineManager.months[0].timelineDays[0];
+      const before = day.activeViewerAssets;
+      expect(before.length).toBeGreaterThan(0);
+
+      day.updateAssetBoundaries();
+      timelineManager.updateViewportProximities();
+
+      expect(day.activeViewerAssets).toBe(before);
+    });
+
+    it('updates activeViewerAssets when the visible range moves', () => {
+      const day = timelineManager.months[0].timelineDays[0];
+      const before = day.activeViewerAssets;
+
+      timelineManager.scrollableElement = { scrollTop: 3500 } as unknown as HTMLElement;
+      timelineManager.updateSlidingWindow();
+
+      expect(day.activeViewerAssets).not.toBe(before);
+      expect(day.activeViewerAssets.length).toBeGreaterThan(0);
+      expect(day.activeViewerAssets[0]).not.toBe(before[0]);
+    });
+
+    it('recomputes the visible range after a layout pass', () => {
+      const day = timelineManager.months[0].timelineDays[0];
+      const before = day.activeViewerAssets;
+
+      timelineManager.refreshLayout();
+
+      expect(day.activeViewerAssets).not.toBe(before);
+      expect(day.activeViewerAssets.length).toBe(before.length);
+    });
+  });
 });
