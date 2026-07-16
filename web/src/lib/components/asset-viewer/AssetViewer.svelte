@@ -431,7 +431,11 @@
     if (assetViewerManager.isShowEditor && editManager.selectedTool?.type === EditToolType.Transform) {
       return 'CropArea';
     }
-    if (assetViewerManager.isShowEditor && editManager.selectedTool?.type === EditToolType.Adjust) {
+    if (
+      assetViewerManager.isShowEditor &&
+      (editManager.selectedTool?.type === EditToolType.Adjust ||
+        editManager.selectedTool?.type === EditToolType.Filters)
+    ) {
       return 'AdjustArea';
     }
     return 'PhotoViewer';

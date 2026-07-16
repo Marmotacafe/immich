@@ -26,6 +26,7 @@
   const toolLabels = $derived<Record<EditToolType, string>>({
     [EditToolType.Transform]: $t('editor_tool_transform'),
     [EditToolType.Adjust]: $t('editor_tool_adjust'),
+    [EditToolType.Filters]: $t('editor_tool_filters'),
   });
 
   onMount(async () => {
