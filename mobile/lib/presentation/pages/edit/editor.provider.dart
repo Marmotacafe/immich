@@ -84,6 +84,10 @@ class EditorProvider extends Notifier<EditorState> {
     );
   }
 
+  void setAdjustments({required double brightness, required double contrast, required double saturation}) {
+    state = state.copyWith(brightness: brightness, contrast: contrast, saturation: saturation, hasUnsavedEdits: true);
+  }
+
   void setBrightness(double value) {
     state = state.copyWith(brightness: value, hasUnsavedEdits: true);
   }
