@@ -7,6 +7,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/constants/aspect_ratios.dart';
+import 'package:immich_mobile/constants/filter_presets.dart';
 import 'package:immich_mobile/domain/models/asset_edit.model.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/presentation/pages/edit/editor.provider.dart';
@@ -28,8 +29,10 @@ class DriftEditImagePage extends ConsumerStatefulWidget {
   ConsumerState<DriftEditImagePage> createState() => _DriftEditImagePageState();
 }
 
+enum _EditorSection { transform, adjust, filters }
+
 class _DriftEditImagePageState extends ConsumerState<DriftEditImagePage> with TickerProviderStateMixin {
-  bool _showAdjustments = false;
+  _EditorSection _section = _EditorSection.transform;
 
   Future<void> _saveEditedImage() async {
     ref.read(editorStateProvider.notifier).setIsEditing(true);
@@ -150,10 +153,14 @@ class _DriftEditImagePageState extends ConsumerState<DriftEditImagePage> with Ti
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _EditorSectionToggle(
-                          showAdjustments: _showAdjustments,
-                          onChanged: (showAdjustments) => setState(() => _showAdjustments = showAdjustments),
+                          section: _section,
+                          onChanged: (section) => setState(() => _section = section),
                         ),
-                        if (_showAdjustments) const _AdjustControls() else const _TransformControls(),
+                        switch (_section) {
+                          _EditorSection.transform => const _TransformControls(),
+                          _EditorSection.adjust => const _AdjustControls(),
+                          _EditorSection.filters => _FilterControls(imageProvider: widget.image.image),
+                        },
                         const Padding(
                           padding: EdgeInsets.only(bottom: 36, left: 24, right: 24),
                           child: Row(children: [Spacer(), _ResetEditsButton()]),
@@ -251,10 +258,16 @@ class _AspectRatioSelector extends ConsumerWidget {
 }
 
 class _EditorSectionToggle extends StatelessWidget {
-  final bool showAdjustments;
-  final ValueChanged<bool> onChanged;
+  final _EditorSection section;
+  final ValueChanged<_EditorSection> onChanged;
 
-  const _EditorSectionToggle({required this.showAdjustments, required this.onChanged});
+  const _EditorSectionToggle({required this.section, required this.onChanged});
+
+  static const _icons = {
+    _EditorSection.transform: Icons.crop_rotate,
+    _EditorSection.adjust: Icons.tune,
+    _EditorSection.filters: Icons.filter_vintage,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -262,22 +275,96 @@ class _EditorSectionToggle extends StatelessWidget {
       padding: const EdgeInsets.only(top: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ImmichIconButton(
-            icon: Icons.crop_rotate,
-            variant: showAdjustments ? ImmichVariant.ghost : ImmichVariant.filled,
-            color: showAdjustments ? ImmichColor.secondary : ImmichColor.primary,
-            onPressed: () => onChanged(false),
-          ),
-          const SizedBox(width: 16),
-          ImmichIconButton(
-            icon: Icons.tune,
-            variant: showAdjustments ? ImmichVariant.filled : ImmichVariant.ghost,
-            color: showAdjustments ? ImmichColor.primary : ImmichColor.secondary,
-            onPressed: () => onChanged(true),
-          ),
-        ],
+        children: _EditorSection.values.map((value) {
+          final isSelected = value == section;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: ImmichIconButton(
+              icon: _icons[value]!,
+              variant: isSelected ? ImmichVariant.filled : ImmichVariant.ghost,
+              color: isSelected ? ImmichColor.primary : ImmichColor.secondary,
+              onPressed: () => onChanged(value),
+            ),
+          );
+        }).toList(),
       ),
+    );
+  }
+}
+
+class _FilterControls extends ConsumerWidget {
+  final ImageProvider imageProvider;
+
+  const _FilterControls({required this.imageProvider});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final editorState = ref.watch(editorStateProvider);
+    final editorNotifier = ref.read(editorStateProvider.notifier);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: filterPresets.map((preset) {
+              final isSelected = preset.matches(
+                brightness: editorState.brightness,
+                contrast: editorState.contrast,
+                saturation: editorState.saturation,
+              );
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: InkWell(
+                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  onTap: () => editorNotifier.setAdjustments(
+                    brightness: preset.brightness,
+                    contrast: preset.contrast,
+                    saturation: preset.saturation,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.all(Radius.circular(12)),
+                          border: Border.all(color: isSelected ? context.primaryColor : Colors.transparent, width: 2),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.all(Radius.circular(10)),
+                          child: ColorFiltered(
+                            colorFilter: ColorFilter.matrix(
+                              buildAdjustColorMatrix(
+                                brightness: preset.brightness,
+                                contrast: preset.contrast,
+                                saturation: preset.saturation,
+                              ),
+                            ),
+                            child: Image(image: imageProvider, width: 64, height: 64, fit: BoxFit.cover),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        preset.labelKey.tr(),
+                        style: context.textTheme.displayMedium?.copyWith(
+                          color: isSelected ? context.primaryColor : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }
