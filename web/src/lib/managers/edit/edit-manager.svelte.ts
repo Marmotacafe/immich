@@ -1,11 +1,13 @@
 import { editAsset, removeAssetEdits, type AssetEditsCreateDto, type AssetResponseDto } from '@immich/sdk';
 import { ConfirmModal, modalManager, toastManager } from '@immich/ui';
-import { mdiCropRotate, mdiTuneVariant } from '@mdi/js';
+import { mdiCropRotate, mdiImageFilterVintage, mdiTuneVariant } from '@mdi/js';
 import type { Component } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import AdjustTool from '$lib/components/asset-viewer/editor/adjust-tool/AdjustTool.svelte';
+import FilterTool from '$lib/components/asset-viewer/editor/filter-tool/FilterTool.svelte';
 import TransformTool from '$lib/components/asset-viewer/editor/transform-tool/TransformTool.svelte';
 import { adjustManager } from '$lib/managers/edit/adjust-manager.svelte';
+import { filterManager } from '$lib/managers/edit/filter-manager.svelte';
 import { transformManager } from '$lib/managers/edit/transform-manager.svelte';
 import { eventManager } from '$lib/managers/event-manager.svelte';
 import { waitForWebsocketEvent } from '$lib/stores/websocket';
@@ -26,6 +28,7 @@ export interface EditToolManager {
 export enum EditToolType {
   Transform = 'transform',
   Adjust = 'adjust',
+  Filters = 'filters',
 }
 
 export interface EditTool {
@@ -48,6 +51,12 @@ export class EditManager {
       icon: mdiTuneVariant,
       component: AdjustTool,
       manager: adjustManager,
+    },
+    {
+      type: EditToolType.Filters,
+      icon: mdiImageFilterVintage,
+      component: FilterTool,
+      manager: filterManager,
     },
   ];
 
