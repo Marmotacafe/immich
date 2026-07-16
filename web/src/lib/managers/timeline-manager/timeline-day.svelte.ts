@@ -47,6 +47,10 @@ export class TimelineDay {
   #col = $state(0);
   #deferredLayout = false;
 
+  // Visible range backing activeViewerAssets: -1/-1 = not yet computed, -2/-2 = computed empty
+  #activeFirstIndex = -1;
+  #activeLastIndex = -1;
+
   constructor(timelineMonth: TimelineMonth, index: number, day: number, groupTitle: string, orderBy: AssetOrderBy) {
     this.index = index;
     this.timelineMonth = timelineMonth;
@@ -171,6 +175,9 @@ export class TimelineDay {
     for (let i = 0; i < this.viewerAssets.length; i++) {
       this.viewerAssets[i].position = geometry.getPosition(i);
     }
+    // Positions changed, so the cached visible range no longer describes the same assets
+    this.#activeFirstIndex = -1;
+    this.#activeLastIndex = -1;
     this.updateAssetBoundaries();
   }
 
@@ -178,8 +185,7 @@ export class TimelineDay {
     const manager = this.timelineMonth.timelineManager;
     const visibleWindow = manager.visibleWindow;
     if (this.viewerAssets.length === 0 || !this.viewerAssets[0].position) {
-      this.activeViewerAssets = [];
-      this.isInOrNearViewport = false;
+      this.#setActiveRange(-2, -2);
       return;
     }
 
@@ -192,6 +198,24 @@ export class TimelineDay {
     const last = lowerBound(this.viewerAssets, expandedBottom, (p) => p.top) - 1;
 
     const hasActive = last >= first && first < this.viewerAssets.length;
+    if (hasActive) {
+      this.#setActiveRange(first, last);
+    } else {
+      this.#setActiveRange(-2, -2);
+    }
+  }
+
+  // This runs for every visible day on every scroll event, and reassigning
+  // activeViewerAssets invalidates each consumer's keyed diff — so skip the
+  // reassignment entirely while the visible range stays the same
+  #setActiveRange(first: number, last: number) {
+    if (first === this.#activeFirstIndex && last === this.#activeLastIndex) {
+      return;
+    }
+    this.#activeFirstIndex = first;
+    this.#activeLastIndex = last;
+
+    const hasActive = first >= 0;
     this.activeViewerAssets = hasActive ? this.viewerAssets.slice(first, last + 1) : [];
     this.isInOrNearViewport = hasActive;
   }
