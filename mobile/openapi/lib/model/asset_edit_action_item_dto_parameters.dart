@@ -19,6 +19,9 @@ class AssetEditActionItemDtoParameters {
     required this.y,
     required this.angle,
     required this.axis,
+    required this.brightness,
+    required this.contrast,
+    required this.saturation,
   });
 
   /// Height of the crop
@@ -50,6 +53,24 @@ class AssetEditActionItemDtoParameters {
 
   MirrorAxis axis;
 
+  /// Brightness multiplier (1 = unchanged)
+  ///
+  /// Minimum value: 0
+  /// Maximum value: 2
+  num brightness;
+
+  /// Contrast multiplier (1 = unchanged)
+  ///
+  /// Minimum value: 0
+  /// Maximum value: 2
+  num contrast;
+
+  /// Saturation multiplier (1 = unchanged, 0 = grayscale)
+  ///
+  /// Minimum value: 0
+  /// Maximum value: 2
+  num saturation;
+
   @override
   bool operator ==(Object other) => identical(this, other) || other is AssetEditActionItemDtoParameters &&
     other.height == height &&
@@ -57,7 +78,10 @@ class AssetEditActionItemDtoParameters {
     other.x == x &&
     other.y == y &&
     other.angle == angle &&
-    other.axis == axis;
+    other.axis == axis &&
+    other.brightness == brightness &&
+    other.contrast == contrast &&
+    other.saturation == saturation;
 
   @override
   int get hashCode =>
@@ -67,10 +91,13 @@ class AssetEditActionItemDtoParameters {
     (x.hashCode) +
     (y.hashCode) +
     (angle.hashCode) +
-    (axis.hashCode);
+    (axis.hashCode) +
+    (brightness.hashCode) +
+    (contrast.hashCode) +
+    (saturation.hashCode);
 
   @override
-  String toString() => 'AssetEditActionItemDtoParameters[height=$height, width=$width, x=$x, y=$y, angle=$angle, axis=$axis]';
+  String toString() => 'AssetEditActionItemDtoParameters[height=$height, width=$width, x=$x, y=$y, angle=$angle, axis=$axis, brightness=$brightness, contrast=$contrast, saturation=$saturation]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -80,6 +107,9 @@ class AssetEditActionItemDtoParameters {
       json[r'y'] = this.y;
       json[r'angle'] = this.angle;
       json[r'axis'] = this.axis;
+      json[r'brightness'] = this.brightness;
+      json[r'contrast'] = this.contrast;
+      json[r'saturation'] = this.saturation;
     return json;
   }
 
@@ -98,6 +128,9 @@ class AssetEditActionItemDtoParameters {
         y: mapValueOfType<int>(json, r'y')!,
         angle: num.parse('${json[r'angle']}'),
         axis: MirrorAxis.fromJson(json[r'axis'])!,
+        brightness: num.parse('${json[r'brightness']}'),
+        contrast: num.parse('${json[r'contrast']}'),
+        saturation: num.parse('${json[r'saturation']}'),
       );
     }
     return null;
@@ -151,6 +184,9 @@ class AssetEditActionItemDtoParameters {
     'y',
     'angle',
     'axis',
+    'brightness',
+    'contrast',
+    'saturation',
   };
 }
 

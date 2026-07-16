@@ -309,4 +309,50 @@ void main() {
       expect(compareEditAffines(normalizedEdits, edits), true);
     });
   });
+
+  group('buildAdjustColorMatrix', () {
+    // Applies the 4x5 color matrix to an rgb pixel (alpha assumed 1)
+    List<double> applyMatrix(List<double> m, double r, double g, double b) {
+      return [
+        m[0] * r + m[1] * g + m[2] * b + m[4],
+        m[5] * r + m[6] * g + m[7] * b + m[9],
+        m[10] * r + m[11] * g + m[12] * b + m[14],
+      ];
+    }
+
+    test('neutral values produce the identity matrix', () {
+      final matrix = buildAdjustColorMatrix(brightness: 1, contrast: 1, saturation: 1);
+      final result = applyMatrix(matrix, 120, 80, 40);
+
+      expect(result[0], closeTo(120, 1e-9));
+      expect(result[1], closeTo(80, 1e-9));
+      expect(result[2], closeTo(40, 1e-9));
+    });
+
+    test('brightness scales channels linearly', () {
+      final matrix = buildAdjustColorMatrix(brightness: 1.5, contrast: 1, saturation: 1);
+      final result = applyMatrix(matrix, 100, 100, 100);
+
+      expect(result[0], closeTo(150, 1e-9));
+      expect(result[1], closeTo(150, 1e-9));
+      expect(result[2], closeTo(150, 1e-9));
+    });
+
+    test('contrast pivots around mid-grey', () {
+      final matrix = buildAdjustColorMatrix(brightness: 1, contrast: 1.5, saturation: 1);
+
+      // out = 1.5 * in - 0.5 * 127.5: light moves up, dark moves down, mid-grey stays
+      expect(applyMatrix(matrix, 200, 200, 200)[0], closeTo(236.25, 1e-9));
+      expect(applyMatrix(matrix, 50, 50, 50)[0], closeTo(11.25, 1e-9));
+      expect(applyMatrix(matrix, 127.5, 127.5, 127.5)[0], closeTo(127.5, 1e-9));
+    });
+
+    test('zero saturation converges channels to luminance grey', () {
+      final matrix = buildAdjustColorMatrix(brightness: 1, contrast: 1, saturation: 0);
+      final result = applyMatrix(matrix, 200, 50, 50);
+
+      expect(result[0], closeTo(result[1], 1e-9));
+      expect(result[1], closeTo(result[2], 1e-9));
+    });
+  });
 }
