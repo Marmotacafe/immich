@@ -10,6 +10,29 @@ rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
     project.evaluationDependsOn(':app')
+
+    // Plugin subprojects default to JVM target 1.8, which cannot inline the
+    // JVM-11 bytecode of current androidx artifacts (e.g. work-runtime resolved by
+    // home_widget). Align both Java and Kotlin with the app module's target
+    // (app/build.gradle) to keep the toolchain consistent across all modules.
+    // Some subprojects are already evaluated here (evaluationDependsOn ':app' pulls
+    // plugin projects in early), so pick the right configuration hook per project.
+    def alignJavaTarget = { proj ->
+        if (proj.hasProperty('android')) {
+            proj.android.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+    }
+    if (project.state.executed) {
+        alignJavaTarget(project)
+    } else {
+        project.afterEvaluate { alignJavaTarget(project) }
+    }
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions.jvmTarget = '17'
+    }
 }
 
 tasks.register("clean", Delete) {
